@@ -658,11 +658,11 @@ async function checkAndRequestPermissions() {
   }
   try {
     console.log("Checking Screen Capture permissions")
-    await captureClient.requestPermission("screen-capture");
-    console.log("Screen Permission Done")
+    response = await captureClient.requestPermission("screen-capture");
+    console.log("Screen Permission Done", response)
     console.log("Checking Microphone Permission")
-    await captureClient.requestPermission("microphone");
-    console.log("Microphone Permission Done")
+    response= await captureClient.requestPermission("microphone");
+    console.log("Microphone Permission Done", response)
     console.log("✓ Permissions requested via CaptureClient");
   } catch (e) {
     console.warn("Permission request failed:", e.message);

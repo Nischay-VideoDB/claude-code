@@ -1,5 +1,5 @@
 {
-  "name": "vdb-recorder-demo",
+  "name": "pair-programmer",
   "version": "1.0.0",
   "description": "VideoDB Recorder - Screen recording with real-time indexing and HTTP API",
   "main": "recorder-app.js",

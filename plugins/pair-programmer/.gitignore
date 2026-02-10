@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+package-lock.json
 
 # Config with secrets
 .claude/skills/pair-programmer/config.json
@@ -17,3 +18,4 @@ out/
 # Logs
 *.log
 npm-debug.log*
+plugins/pair-programmer/skills/pair-programmer/videodb-recorder
