@@ -20,12 +20,22 @@ CONFIG_FILE="${CONFIG_DIR}/config.json"
 # Read port from config (default 8899)
 PORT=$(jq -r '.recorder_port // 8899' "$CONFIG_FILE" 2>/dev/null)
 
-# Find and kill process on the port
-PID=$(lsof -ti :$PORT 2>/dev/null)
-
-if [ -n "$PID" ]; then
-  kill $PID 2>/dev/null
-  echo "Stopped recorder (PID: $PID, port: $PORT)" >&2
+# Step 1: Request graceful shutdown via API
+SHUTDOWN_RESP=$(curl -s -o /dev/null -w "%{http_code}" -X POST "http://127.0.0.1:${PORT}/api/shutdown" -H "Content-Type: application/json" 2>/dev/null)
+if [ "$SHUTDOWN_RESP" = "200" ]; then
+  echo "Graceful shutdown requested (port: $PORT)" >&2
+else
+  echo "Shutdown endpoint failed (HTTP $SHUTDOWN_RESP), will force-kill" >&2
 fi
+
+# Step 2: Wait 15s for graceful shutdown, then force-kill anything still on the port
+(
+  sleep 2
+  PID=$(lsof -ti :$PORT 2>/dev/null)
+  if [ -n "$PID" ]; then
+    kill -9 $PID 2>/dev/null
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) Force-killed PID $PID on port $PORT" >> "$LOG"
+  fi
+) &
 
 exit 0

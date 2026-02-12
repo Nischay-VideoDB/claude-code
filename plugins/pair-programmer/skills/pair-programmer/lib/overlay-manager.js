@@ -9,11 +9,19 @@ class OverlayManager {
     this._uiDir = uiDir;
     this._loading = false;
 
+    this._permissionResolve = null;
+
     recState.on("stateChanged", () => this._pushStatus());
     ipcMain.on("overlay-close", () => this.setVisible(false));
     ipcMain.on("overlay-resize", (_, { width, height }) => {
       if (this._window && !this._window.isDestroyed()) {
         this._window.setSize(Math.round(width), Math.round(height));
+      }
+    });
+    ipcMain.on("permission-response", (_, decision) => {
+      if (this._permissionResolve) {
+        this._permissionResolve(decision);
+        this._permissionResolve = null;
       }
     });
   }
@@ -60,9 +68,45 @@ class OverlayManager {
     this.show(message);
   }
 
+  pushHookEvent(data) {
+    if (!this._window || this._window.isDestroyed()) return;
+    this._window.webContents.send("hook-event", data);
+  }
+
+  showPermissionPrompt({ toolName, toolInput }) {
+    console.log(`[Overlay] Permission prompt: ${toolName}`);
+    const win = this._ensureWindow();
+    win.show();
+
+    const payload = { toolName, toolInput };
+    const send = () => win.webContents.send("permission-prompt", payload);
+    win.webContents.once("did-finish-load", send);
+    if (!win.webContents.isLoading()) send();
+
+    return new Promise((resolve) => {
+      // Auto-deny after 30s if no response
+      const timeout = setTimeout(() => {
+        if (this._permissionResolve === resolve) {
+          this._permissionResolve = null;
+          resolve("deny");
+        }
+      }, 30000);
+
+      this._permissionResolve = (decision) => {
+        clearTimeout(timeout);
+        resolve(decision);
+      };
+    });
+  }
+
   destroy() {
     ipcMain.removeAllListeners("overlay-close");
     ipcMain.removeAllListeners("overlay-resize");
+    ipcMain.removeAllListeners("permission-response");
+    if (this._permissionResolve) {
+      this._permissionResolve("deny");
+      this._permissionResolve = null;
+    }
     this.hide();
   }
 

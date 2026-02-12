@@ -306,6 +306,182 @@
     .context-toggle:hover { background: #333; color: #ccc; }
     .context-toggle.active { background: #444; color: #fff; border-color: #666; }
 
+    /* Permission prompt */
+    .permission-prompt { display: none; flex: 1; flex-direction: column; gap: 12px; }
+    .permission-prompt.visible { display: flex; }
+    .permission-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #ffd60a;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .permission-tool {
+      font-size: 12px;
+      color: #f5f5f7;
+      padding: 8px 10px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 8px;
+      font-family: 'SF Mono', Menlo, Monaco, monospace;
+    }
+    .permission-input {
+      font-size: 11px;
+      color: #aaa;
+      max-height: 120px;
+      overflow-y: auto;
+      padding: 8px 10px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 8px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      font-family: 'SF Mono', Menlo, Monaco, monospace;
+    }
+    .permission-input::-webkit-scrollbar { width: 4px; }
+    .permission-input::-webkit-scrollbar-thumb { background: #444; border-radius: 2px; }
+    .permission-buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .permission-btn {
+      flex: 1;
+      padding: 8px 0;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      -webkit-app-region: no-drag;
+    }
+    .permission-btn.allow {
+      background: #30d158;
+      color: #000;
+    }
+    .permission-btn.allow:hover { background: #28b94c; }
+    .permission-btn.deny {
+      background: #ff453a;
+      color: #fff;
+    }
+    .permission-btn.deny:hover { background: #e03e34; }
+
+    /* Activity feed */
+    .activity-feed {
+      display: none;
+      flex-direction: column;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      margin-top: 8px;
+      padding-top: 6px;
+      max-height: 140px;
+      overflow-y: auto;
+    }
+    .activity-feed.visible { display: flex; }
+    .activity-feed::-webkit-scrollbar { width: 4px; }
+    .activity-feed::-webkit-scrollbar-track { background: transparent; }
+    .activity-feed::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+    .activity-feed-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    .activity-feed-title {
+      font-size: 10px;
+      font-weight: 600;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .activity-feed-clear {
+      font-size: 10px;
+      color: #555;
+      background: none;
+      border: none;
+      cursor: pointer;
+      -webkit-app-region: no-drag;
+    }
+    .activity-feed-clear:hover { color: #999; }
+
+    .activity-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 0;
+      font-size: 11px;
+      color: #aaa;
+    }
+    .activity-icon {
+      width: 14px;
+      height: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 10px;
+    }
+    .activity-icon .mini-spin {
+      width: 10px;
+      height: 10px;
+      border: 1.5px solid rgba(255, 255, 255, 0.15);
+      border-top-color: #0a84ff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    .activity-icon.done { color: #30d158; }
+    .activity-icon.fail { color: #ff453a; }
+    .activity-label {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-family: 'SF Mono', Menlo, Monaco, monospace;
+      font-size: 10px;
+    }
+    .activity-tool-name {
+      color: #ccc;
+      font-weight: 600;
+    }
+    .activity-detail {
+      color: #666;
+      margin-left: 4px;
+    }
+    .activity-duration {
+      flex-shrink: 0;
+      font-size: 10px;
+      font-variant-numeric: tabular-nums;
+      color: #555;
+    }
+
+    /* MCP activity items */
+    .activity-item.mcp-tool { border-left: 2px solid #bf5af2; padding-left: 6px; margin-left: 2px; }
+    .activity-badge {
+      display: inline-block;
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      padding: 1px 4px;
+      border-radius: 3px;
+      margin-right: 4px;
+      vertical-align: middle;
+      line-height: 1.4;
+    }
+    .activity-badge.mcp { background: rgba(191, 90, 242, 0.25); color: #bf5af2; }
+
+    /* Subagent activity items */
+    .activity-item.subagent {
+      border-left: 2px solid #0a84ff;
+      padding-left: 6px;
+      margin-left: 2px;
+    }
+    .activity-item.subagent .activity-tool-name { color: #0a84ff; }
+    .activity-item.subagent.agent-code-eye { border-left-color: #5e5ce6; }
+    .activity-item.subagent.agent-code-eye .activity-tool-name { color: #5e5ce6; }
+    .activity-item.subagent.agent-voice { border-left-color: #30d158; }
+    .activity-item.subagent.agent-voice .activity-tool-name { color: #30d158; }
+    .activity-item.subagent.agent-hearing { border-left-color: #ffd60a; }
+    .activity-item.subagent.agent-hearing .activity-tool-name { color: #ffd60a; }
+
     /* Resize handle */
     .resize-handle {
       position: fixed;
@@ -348,6 +524,16 @@
       Waiting for context...
     </div>
 
+    <div class="permission-prompt" id="permissionPrompt">
+      <div class="permission-title">🔐 Permission Request</div>
+      <div class="permission-tool" id="permissionTool"></div>
+      <div class="permission-input" id="permissionInput"></div>
+      <div class="permission-buttons">
+        <button class="permission-btn allow" onclick="respondPermission('allow')">✓ Allow</button>
+        <button class="permission-btn deny" onclick="respondPermission('deny')">✕ Deny</button>
+      </div>
+    </div>
+
     <div class="context-viewer" id="contextViewer">
       <div class="context-tabs">
         <button class="context-tab active" data-type="all" onclick="switchContextTab('all', this)">All</button>
@@ -358,6 +544,14 @@
       <div class="context-list" id="contextList">
         <div class="context-empty">No context yet</div>
       </div>
+    </div>
+
+    <div class="activity-feed" id="activityFeed">
+      <div class="activity-feed-header">
+        <span class="activity-feed-title">Activity</span>
+        <button class="activity-feed-clear" onclick="clearActivityFeed()">clear</button>
+      </div>
+      <div id="activityList"></div>
     </div>
 
     <div class="status">
@@ -550,13 +744,18 @@
         return;
       }
 
-      var secs = (latencyMs / 1000).toFixed(2);
-      val.textContent = secs + 's';
       val.className = 'latency-value';
-      if (latencyMs < 5000) val.classList.add('good');
-      else if (latencyMs < 10000) val.classList.add('ok');
-      else if (latencyMs < 20000) val.classList.add('slow');
-      else val.classList.add('bad');
+      if (latencyMs < 100) {
+        val.textContent = '<100ms';
+        val.classList.add('good');
+      } else {
+        var secs = (latencyMs / 1000).toFixed(2);
+        val.textContent = secs + 's';
+        if (latencyMs < 5000) val.classList.add('good');
+        else if (latencyMs < 10000) val.classList.add('ok');
+        else if (latencyMs < 20000) val.classList.add('slow');
+        else val.classList.add('bad');
+      }
     }
 
     // -- Context viewer --
@@ -678,6 +877,261 @@
 
     function openPlayerUrl() {
       if (currentPlayerUrl) shell.openExternal(currentPlayerUrl);
+    }
+
+    // -- Permission prompt --
+    ipcRenderer.on('permission-prompt', (event, data) => {
+      // Hide content/loading, show permission prompt
+      document.getElementById('loadingWrap').classList.remove('visible');
+      document.getElementById('content').classList.add('hidden');
+      document.getElementById('contextViewer').classList.remove('visible');
+
+      var prompt = document.getElementById('permissionPrompt');
+      document.getElementById('permissionTool').textContent = data.toolName || 'Unknown tool';
+      var inputStr = typeof data.toolInput === 'string'
+        ? data.toolInput
+        : JSON.stringify(data.toolInput, null, 2);
+      document.getElementById('permissionInput').textContent = inputStr || '(no input)';
+      prompt.classList.add('visible');
+    });
+
+    function respondPermission(decision) {
+      ipcRenderer.send('permission-response', decision);
+      // Hide prompt, restore content
+      document.getElementById('permissionPrompt').classList.remove('visible');
+      document.getElementById('content').classList.remove('hidden');
+      document.getElementById('content').textContent = decision === 'allow'
+        ? '✓ Permission allowed'
+        : '✕ Permission denied';
+    }
+
+    // -- Activity feed --
+    var activityItems = {};  // seq → { toolName, start, timer }
+    var activitySeq = 0;
+    var pendingTools = {};   // tool_name → [seq, seq, ...] (FIFO queue for parallel calls)
+
+    ipcRenderer.on('hook-event', (event, data) => {
+      var feed = document.getElementById('activityFeed');
+      var list = document.getElementById('activityList');
+
+      if (data.event === 'PreToolUse') {
+        activitySeq++;
+        var seq = activitySeq;
+        var toolName = data.tool_name || 'unknown';
+        var detail = summarizeInput(toolName, data.tool_input);
+        if (!pendingTools[toolName]) pendingTools[toolName] = [];
+        pendingTools[toolName].push(seq);
+        activityItems[seq] = { toolName: toolName, start: Date.now() };
+
+        var el = document.createElement('div');
+        el.className = 'activity-item' + (isMcpTool(toolName) ? ' mcp-tool' : '');
+        el.id = 'activity-' + seq;
+        el.innerHTML =
+          '<div class="activity-icon"><div class="mini-spin"></div></div>' +
+          '<div class="activity-label"><span class="activity-tool-name">' + prettifyToolName(toolName) + '</span>' +
+          '<span class="activity-detail">' + escapeHtml(detail) + '</span></div>' +
+          '<span class="activity-duration" id="activity-dur-' + seq + '"></span>';
+        list.appendChild(el);
+        feed.classList.add('visible');
+        feed.scrollTop = feed.scrollHeight;
+
+        // Live duration counter
+        activityItems[seq].timer = setInterval(function() {
+          var durEl = document.getElementById('activity-dur-' + seq);
+          if (!durEl) return;
+          var elapsed = ((Date.now() - activityItems[seq].start) / 1000).toFixed(1);
+          durEl.textContent = elapsed + 's';
+        }, 200);
+      }
+
+      if (data.event === 'PostToolUse' || data.event === 'PostToolUseFailure') {
+        var toolName = data.tool_name || 'unknown';
+        var queue = pendingTools[toolName];
+        var seq = queue && queue.length > 0 ? queue.shift() : null;
+        if (seq && activityItems[seq]) {
+          var item = activityItems[seq];
+          if (item.timer) clearInterval(item.timer);
+          var elapsed = ((Date.now() - item.start) / 1000).toFixed(1);
+          var el = document.getElementById('activity-' + seq);
+          if (el) {
+            var icon = el.querySelector('.activity-icon');
+            if (data.event === 'PostToolUse') {
+              icon.innerHTML = '✓';
+              icon.className = 'activity-icon done';
+            } else {
+              icon.innerHTML = '✗';
+              icon.className = 'activity-icon fail';
+            }
+            var durEl = document.getElementById('activity-dur-' + seq);
+            if (durEl) durEl.textContent = elapsed + 's';
+          }
+          if (queue && queue.length === 0) delete pendingTools[toolName];
+        }
+      }
+
+      if (data.event === 'Stop') {
+        // Clear all pending spinners (pendingTools values are now arrays)
+        Object.keys(pendingTools).forEach(function(k) {
+          var queue = pendingTools[k];
+          if (!Array.isArray(queue)) queue = [queue];
+          queue.forEach(function(s) {
+            if (activityItems[s] && activityItems[s].timer) clearInterval(activityItems[s].timer);
+            var el = document.getElementById('activity-' + s);
+            if (el) {
+              var icon = el.querySelector('.activity-icon');
+              icon.innerHTML = '●';
+              icon.className = 'activity-icon done';
+            }
+          });
+        });
+        pendingTools = {};
+      }
+
+      if (data.event === 'SubagentStart') {
+        activitySeq++;
+        var seq = activitySeq;
+        var agentType = data.agent_type || 'unknown';
+        var agentLabel = { 'code-eye': 'code-eye', 'voice': 'voice', 'hearing': 'hearing' }[agentType] || agentType;
+        var agentIcon = { 'code-eye': '👁', 'voice': '🎤', 'hearing': '🔊' }[agentType] || '⚡';
+        var agentClass = 'agent-' + agentType;
+        var agentKey = '_agent_' + agentType;
+        if (!pendingTools[agentKey]) pendingTools[agentKey] = [];
+        pendingTools[agentKey].push(seq);
+        activityItems[seq] = { toolName: agentType, start: Date.now() };
+
+        var el = document.createElement('div');
+        el.className = 'activity-item subagent ' + agentClass;
+        el.id = 'activity-' + seq;
+        el.innerHTML =
+          '<div class="activity-icon">' + agentIcon + '</div>' +
+          '<div class="activity-label"><span class="activity-tool-name">' + escapeHtml(agentLabel) + '</span>' +
+          '<span class="activity-detail">analyzing...</span></div>' +
+          '<span class="activity-duration" id="activity-dur-' + seq + '"></span>';
+        list.appendChild(el);
+        feed.classList.add('visible');
+        feed.scrollTop = feed.scrollHeight;
+
+        activityItems[seq].timer = setInterval(function() {
+          var durEl = document.getElementById('activity-dur-' + seq);
+          if (!durEl) return;
+          var elapsed = ((Date.now() - activityItems[seq].start) / 1000).toFixed(1);
+          durEl.textContent = elapsed + 's';
+        }, 200);
+      }
+
+      if (data.event === 'SubagentStop') {
+        var agentType = data.agent_type || 'unknown';
+        var agentKey = '_agent_' + agentType;
+        var queue = pendingTools[agentKey];
+        var seq = queue && queue.length > 0 ? queue.shift() : null;
+        if (seq && activityItems[seq]) {
+          var item = activityItems[seq];
+          if (item.timer) clearInterval(item.timer);
+          var elapsed = ((Date.now() - item.start) / 1000).toFixed(1);
+          var el = document.getElementById('activity-' + seq);
+          if (el) {
+            var detail = el.querySelector('.activity-detail');
+            if (detail) detail.textContent = 'done';
+            var icon = el.querySelector('.activity-icon');
+            if (icon) icon.className = 'activity-icon done';
+            var durEl = document.getElementById('activity-dur-' + seq);
+            if (durEl) durEl.textContent = elapsed + 's';
+          }
+          if (queue && queue.length === 0) delete pendingTools[agentKey];
+        }
+      }
+
+      if (data.event === 'Notification' && data.message) {
+        activitySeq++;
+        var el = document.createElement('div');
+        el.className = 'activity-item';
+        el.innerHTML =
+          '<div class="activity-icon" style="color:#ffd60a;">!</div>' +
+          '<div class="activity-label"><span class="activity-detail">' + escapeHtml(data.message) + '</span></div>';
+        list.appendChild(el);
+        feed.classList.add('visible');
+        feed.scrollTop = feed.scrollHeight;
+      }
+    });
+
+    function isMcpTool(toolName) {
+      return toolName && toolName.startsWith('mcp__') && toolName.indexOf('__', 5) !== -1;
+    }
+
+    function mcpToolShortName(toolName) {
+      var lastSep = toolName.lastIndexOf('__');
+      return lastSep > 4 ? toolName.substring(lastSep + 2) : toolName;
+    }
+
+    function prettifyToolName(toolName) {
+      if (!isMcpTool(toolName)) return escapeHtml(toolName);
+      var short = mcpToolShortName(toolName);
+      var label = short.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+      return '<span class="activity-badge mcp">MCP</span>' + escapeHtml(label);
+    }
+
+    function summarizeMcpInput(shortName, input) {
+      switch (shortName) {
+        case 'get_context':
+          return input.context_type ? input.context_type : '';
+        case 'show_overlay':
+          if (input.loading) return 'loading...';
+          if (input.text) {
+            var t = input.text;
+            return t.length > 50 ? t.substring(0, 47) + '...' : t;
+          }
+          return '';
+        case 'hide_overlay':
+          return '';
+        case 'search_rtstream':
+          return input.query ? '"' + (input.query.length > 40 ? input.query.substring(0, 37) + '...' : input.query) + '"' : '';
+        case 'update_prompt':
+          return input.stream_id ? 'stream: ' + input.stream_id : '';
+        case 'get_status':
+          return '';
+        case 'record_start':
+          return input.channels ? input.channels : '';
+        case 'record_stop':
+          return '';
+        default:
+          return '';
+      }
+    }
+
+    function summarizeInput(toolName, rawInput) {
+      try {
+        var input = typeof rawInput === 'string' ? JSON.parse(rawInput) : rawInput;
+        if (!input) return '';
+        if (isMcpTool(toolName)) return summarizeMcpInput(mcpToolShortName(toolName), input);
+        if (toolName === 'Read' && input.file_path) return input.file_path;
+        if (toolName === 'Write' && input.file_path) return input.file_path;
+        if (toolName === 'Edit' && input.file_path) return input.file_path;
+        if (toolName === 'Bash' && input.command) {
+          var cmd = input.command;
+          return cmd.length > 60 ? cmd.substring(0, 57) + '...' : cmd;
+        }
+        if (toolName === 'Grep' && input.pattern) return input.pattern;
+        if (toolName === 'Glob' && input.pattern) return input.pattern;
+        if (toolName === 'Task' && input.description) return input.description;
+        if (toolName === 'Task' && input.agent_type) return input.agent_type;
+        var keys = Object.keys(input);
+        if (keys.length > 0) {
+          var val = String(input[keys[0]]);
+          return val.length > 50 ? val.substring(0, 47) + '...' : val;
+        }
+      } catch (e) {}
+      return '';
+    }
+
+    function clearActivityFeed() {
+      Object.keys(activityItems).forEach(function(k) {
+        if (activityItems[k].timer) clearInterval(activityItems[k].timer);
+      });
+      activityItems = {};
+      pendingTools = {};
+      activitySeq = 0;
+      document.getElementById('activityList').innerHTML = '';
+      document.getElementById('activityFeed').classList.remove('visible');
     }
 
     function closeOverlay() {

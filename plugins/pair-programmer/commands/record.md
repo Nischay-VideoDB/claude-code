@@ -1,14 +1,16 @@
 ---
 description: Start or stop screen/audio recording with optional runtime config
+tools: Bash, Read
+mcpServers: recorder
 ---
 
-Control recording via the recorder HTTP API. See SKILL.md for full endpoint docs and curl examples.
+Control recording via the `recorder` MCP tools.
 
 ## Flow
 
 ### 1. Ensure recorder is ready
 
-Use the **file read tool** to read `~/.config/videodb/config.json` (do NOT use cat, jq, or shell commands to read it). Check `setup` is `true` and `videodb_api_key` exists. Get `recorder_port` (default 8899).
+Use the **Read tool** to read `~/.config/videodb/config.json`. Check `setup` is `true` and `videodb_api_key` exists. Get `recorder_port` (default 8899).
 
 ```bash
 lsof -i :$PORT >/dev/null 2>&1 && echo "RUNNING" || echo "NOT_RUNNING"
@@ -20,14 +22,11 @@ lsof -i :$PORT >/dev/null 2>&1 && echo "RUNNING" || echo "NOT_RUNNING"
 
 ### 2. Start or stop
 
-First check current state: `GET /api/status` → look at `recording` field.
+Call `get_status` to check the current recording state.
 
-- **If NOT recording** → **immediately start** by calling `POST /api/record/start` with `{}`. Do NOT ask the user whether to start or stop — just start.
-- **If already recording** → **immediately stop** by calling `POST /api/record/stop`. Do NOT ask — just stop.
+- **If NOT recording** → call `record_start`. Optionally pass `indexing_config` if the user specifies a focus (e.g. `{"indexing_config":{"visual":{"prompt":"Focus on code"}}}`).
+- **If already recording** → call `record_stop`.
 - **If user explicitly says "stop"** → stop regardless.
-
-If the user specifies a focus (e.g. "record with focus on code"), pass it as `indexing_config` in the start body:
-`{"indexing_config":{"visual":{"prompt":"Focus on code"}}}`
 
 ### 3. Report result
 

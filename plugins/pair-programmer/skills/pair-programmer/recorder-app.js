@@ -56,11 +56,37 @@ const INDEXING_CONFIG = {
   mic: config.mic_index || {},
 };
 
+// Status update interval (every N PreToolUse hooks)
+const STATUS_UPDATE_INTERVAL = config.status_update_interval || 3;
+
+// Claude CLI configuration: plugin defaults ← user overrides (config.claude section)
+function loadClaudeConfig() {
+  var defaults;
+  try {
+    defaults = JSON.parse(fs.readFileSync(path.join(__dirname, "claude.config.json"), "utf8"));
+  } catch (e) {
+    defaults = {};
+  }
+  var user = config.claude || {};
+  return {
+    agent: user.agent || defaults.agent || "pair-programmer:trigger",
+    maxTurns: user.max_turns || defaults.max_turns || 50,
+    allowedTools: user.allowed_tools || defaults.allowed_tools || ["Read", "Write", "Task"],
+    dangerouslySkipPermissions: user.dangerously_skip_permissions !== undefined
+      ? user.dangerously_skip_permissions
+      : defaults.dangerously_skip_permissions !== undefined
+        ? defaults.dangerously_skip_permissions
+        : true,
+  };
+}
+const CLAUDE_CONFIG = loadClaudeConfig();
+
 // Project root from env (set by hook scripts), fallback to cwd
 const PROJECT_ROOT = process.env.PROJECT_DIR || process.cwd();
 const CONTEXT_FILE = path.join(__dirname, ".context.json");
 const UI_DIR = path.join(__dirname, "ui");
 const BIN_DIR = path.join(__dirname, "bin");
+
 
 // =============================================================================
 // Module State
@@ -94,6 +120,12 @@ let wsConnection = null;
 
 // Runtime indexing config (overrides defaults from INDEXING_CONFIG)
 let runtimeIndexingConfig = null;
+
+// Claude Code session ID for the pair-programmer trigger session
+let claudeSessionId = null;
+
+// Claude Code session ID for the status-updater session
+let statusSessionId = null;
 
 // =============================================================================
 // VideoDB SDK Integration
@@ -255,8 +287,6 @@ async function listenToWebSocketEvents() {
     for await (const ev of wsConnection.receive()) {
       const channel = ev.channel || ev.type;
 
-      console.log(`[WS] ${channel} event:\n${JSON.stringify(ev, null, 2)}`);
-
       if (channel === "transcript") {
         const text = ev.data?.text;
         const transcriptType = (ev.rtstream_name || "").includes("system")
@@ -274,10 +304,12 @@ async function listenToWebSocketEvents() {
           text: text,
           start: ev.data?.start,
         });
-        const endTs = ev.data?.end;
-        if (endTs) {
-          const endMs = endTs * 1000; // data.end is in seconds
-          const latencyMs = Date.now() - endMs;
+        const startTs = ev.data?.start;
+        if (startTs) {
+          const now = Date.now();
+          const startMs = startTs > 1e12 ? startTs : startTs * 1000;
+          const latencyMs = Math.max(0, now - startMs);
+          console.log(`[Latency] startTs=${startTs} startMs=${startMs} now=${now} latency=${latencyMs}ms`);
           recordingState.setVisualLatency(latencyMs);
         }
       } else if (channel === "audio_index") {
@@ -395,6 +427,7 @@ function handleGetStatus() {
   return {
     status: "ok",
     ...recordingState.toApiPayload(),
+    claudeSessionId,
     bufferCounts: contextBuffer.getCounts(),
   };
 }
@@ -474,6 +507,38 @@ async function handleUpdatePrompt(body) {
   return { status: "ok", message: "Scene index prompt updated", index_type: indexType || "unknown" };
 }
 
+function handleSetClaudeSession(body) {
+  const id = body.session_id;
+  if (!id) return { status: "error", error: "session_id required" };
+  claudeSessionId = id;
+  console.log(`[API] Claude session stored: ${id}`);
+  return { status: "ok", claudeSessionId: id };
+}
+
+function handleHookEvent(body) {
+  const event = body.event;
+  if (!event) return { status: "error", error: "event required" };
+  console.log(`[API] Hook event: ${event} tool=${body.tool_name || ""}`);
+  overlayManager.pushHookEvent(body);
+  return { status: "ok" };
+}
+
+async function handlePermissionPrompt(body) {
+  const toolName = body.tool_name || "Unknown";
+  const toolInput = body.tool_input || {};
+  console.log(`[API] Permission prompt for tool: ${toolName}`);
+  const decision = await overlayManager.showPermissionPrompt({ toolName, toolInput });
+  console.log(`[API] Permission decision: ${decision}`);
+  return { status: "ok", decision };
+}
+
+function handleShutdown() {
+  console.log("[API] Shutdown requested via /api/shutdown");
+  // Respond immediately, then trigger graceful shutdown async
+  setImmediate(() => exitGracefully("API /api/shutdown"));
+  return { status: "ok", message: "Shutdown initiated" };
+}
+
 // =============================================================================
 // HTTP API Server
 // =============================================================================
@@ -492,8 +557,21 @@ function killProcessOnPort(port) {
   } catch (_) {}
 }
 
+function cleanupStaleBinary() {
+  const stalePath = path.join(__dirname, "videodb-recorder");
+  try {
+    if (fs.existsSync(stalePath)) {
+      fs.unlinkSync(stalePath);
+      console.log("✓ Removed stale videodb-recorder binary");
+    }
+  } catch (_) {}
+}
+
 function startAPIServer() {
   killProcessOnPort(API_PORT);
+  cleanupStaleBinary();
+  // Reset status update counter
+  try { fs.unlinkSync("/tmp/videodb-status-counter"); } catch (_) {}
   contextBuffer.cleanup();
   const server = http.createServer(async (req, res) => {
     const url = req.url.split("?")[0];
@@ -522,6 +600,19 @@ function startAPIServer() {
       "POST /api/rtstream/update-prompt": () => handleUpdatePrompt(body),
       "POST /api/overlay/show": () => overlayManager.show(body.text, { loading: body.loading }),
       "POST /api/overlay/hide": () => overlayManager.hide(),
+      "GET /api/claude-session": () => ({ status: "ok", claudeSessionId }),
+      "POST /api/claude-session": () => handleSetClaudeSession(body),
+      "GET /api/status-session": () => ({ status: "ok", statusSessionId }),
+      "POST /api/status-session": () => {
+        const id = body.session_id;
+        if (!id) return { status: "error", error: "session_id required" };
+        statusSessionId = id;
+        console.log(`[API] Status session stored: ${id}`);
+        return { status: "ok", statusSessionId: id };
+      },
+      "POST /api/hook-event": () => handleHookEvent(body),
+      "POST /api/permission-prompt": () => handlePermissionPrompt(body),
+      "POST /api/shutdown": () => handleShutdown(),
       "POST /webhook": async () => {
         handleWebhookEvent(body).catch(e => {
           console.error("[Webhook] Error processing event:", e.message);
@@ -663,14 +754,35 @@ function registerAssistantShortcut() {
     console.log(`[Assistant] Shortcut ${shortcut} triggered`);
     overlayManager.show("", { loading: true });
 
-    const args = ["-p", "-c", "/pair-programmer:trigger"];
+    const args = [];
     if (process.env.PLUGIN_PATH) {
-      args.unshift("--plugin-dir", process.env.PLUGIN_PATH);
+      args.push("--plugin-dir", process.env.PLUGIN_PATH);
     }
+
+    args.push("--agent", CLAUDE_CONFIG.agent);
+    if (CLAUDE_CONFIG.dangerouslySkipPermissions) args.push("--dangerously-skip-permissions");
+    for (const tool of CLAUDE_CONFIG.allowedTools) args.push("--allowedTools", tool);
+    args.push("--max-turns", String(CLAUDE_CONFIG.maxTurns));
+
+    const triggerPrompt = `User triggered the assistant shortcut. recorder_port: ${API_PORT}`;
+    if (claudeSessionId) {
+      args.push("-r", claudeSessionId, "-p", triggerPrompt, "--output-format", "json");
+      console.log(`[Assistant] Resuming session: ${claudeSessionId}`);
+    } else {
+      args.push("-p", triggerPrompt, "--output-format", "json");
+      console.log("[Assistant] Creating new session");
+    }
+
+    console.log(`[Assistant] claude ${args.join(" ")}`);
+    let stdout = "";
     const child = spawn("claude", args, {
       cwd: PROJECT_ROOT,
-      stdio: "inherit",
+      stdio: ["inherit", "pipe", "inherit"],
       shell: false,
+    });
+
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk.toString();
     });
 
     child.on("error", (err) => {
@@ -683,6 +795,17 @@ function registerAssistantShortcut() {
 
     child.on("close", (code) => {
       console.log(`[Assistant] claude exited with code ${code}`);
+      console.log(`[Assistant] stdout: ${stdout.substring(0, 50)}`);
+      // Parse session_id from JSON output
+      try {
+        const result = JSON.parse(stdout);
+        if (result.session_id && result.session_id !== claudeSessionId) {
+          claudeSessionId = result.session_id;
+          console.log(`[Assistant] Session stored: ${claudeSessionId}`);
+        }
+      } catch (e) {
+        console.warn("[Assistant] Could not parse session_id from output:", e.message);
+      }
     });
   });
 
@@ -691,6 +814,97 @@ function registerAssistantShortcut() {
   } else {
     console.error(`✗ Failed to register shortcut: ${shortcut}`);
   }
+}
+
+// =============================================================================
+// Claude Session Init
+// =============================================================================
+
+function initClaudeSession() {
+  const args = [];
+  if (process.env.PLUGIN_PATH) {
+    args.push("--plugin-dir", process.env.PLUGIN_PATH);
+  }
+  if (CLAUDE_CONFIG.dangerouslySkipPermissions) args.push("--dangerously-skip-permissions");
+  for (const tool of CLAUDE_CONFIG.allowedTools) args.push("--allowedTools", tool);
+  args.push("-p", "ok", "--output-format", "json");
+
+  console.log(`[ClaudeSession] claude ${args.join(" ")}`);
+  let stdout = "";
+  const child = spawn("claude", args, {
+    cwd: PROJECT_ROOT,
+    stdio: ["inherit", "pipe", "inherit"],
+    shell: false,
+  });
+
+  child.stdout.on("data", (chunk) => {
+    stdout += chunk.toString();
+  });
+
+  child.on("error", (err) => {
+    console.error("[ClaudeSession] Failed to create session:", err.message);
+  });
+
+  child.on("close", (code) => {
+    if (code !== 0) {
+      console.warn(`[ClaudeSession] claude exited with code ${code}`);
+      return;
+    }
+    console.log(`[ClaudeSession] stdout: ${stdout}`);
+
+    try {
+      const result = JSON.parse(stdout);
+      if (result.session_id) {
+        claudeSessionId = result.session_id;
+        console.log(`✓ Claude session created: ${claudeSessionId}`);
+      }
+    } catch (e) {
+      console.warn("[ClaudeSession] Could not parse session_id:", e.message);
+    }
+  });
+}
+
+function initStatusSession() {
+  const args = [];
+  if (process.env.PLUGIN_PATH) {
+    args.push("--plugin-dir", process.env.PLUGIN_PATH);
+  }
+  args.push("--agent", "pair-programmer:status-updater");
+  if (CLAUDE_CONFIG.dangerouslySkipPermissions) args.push("--dangerously-skip-permissions");
+  args.push("--allowedTools", "Bash");
+  args.push("-p", `You are the status-updater. recorder_port: ${API_PORT}. Acknowledge.`, "--output-format", "json");
+
+  console.log(`[StatusSession] claude ${args.join(" ")}`);
+  let stdout = "";
+  const child = spawn("claude", args, {
+    cwd: PROJECT_ROOT,
+    stdio: ["inherit", "pipe", "inherit"],
+    shell: false,
+  });
+
+  child.stdout.on("data", (chunk) => {
+    stdout += chunk.toString();
+  });
+
+  child.on("error", (err) => {
+    console.error("[StatusSession] Failed to create session:", err.message);
+  });
+
+  child.on("close", (code) => {
+    if (code !== 0) {
+      console.warn(`[StatusSession] claude exited with code ${code}`);
+      return;
+    }
+    try {
+      const result = JSON.parse(stdout);
+      if (result.session_id) {
+        statusSessionId = result.session_id;
+        console.log(`✓ Status session created: ${statusSessionId}`);
+      }
+    } catch (e) {
+      console.warn("[StatusSession] Could not parse session_id:", e.message);
+    }
+  });
 }
 
 // =============================================================================
@@ -763,8 +977,8 @@ app.whenReady().then(async () => {
 
     // Wait for tunnel/webhook to stabilize before verifying
     if (webhookUrl) {
-      console.log("Waiting 5s for webhook URL to stabilize...");
-      await new Promise((r) => setTimeout(r, 5000));
+      console.log("Waiting 10s for webhook URL to stabilize...");
+      await new Promise((r) => setTimeout(r, 10000));
 
       const baseUrl = webhookUrl.replace(/\/webhook$/, "");
       try {
@@ -793,6 +1007,12 @@ app.whenReady().then(async () => {
     // Register global shortcut for assistant
     registerAssistantShortcut();
 
+    // Create a dedicated Claude Code session for the pair-programmer
+    initClaudeSession();
+
+    // Create a dedicated session for status updates
+    initStatusSession();
+
     overlayManager.showReady();
 
     new Notification({
@@ -814,42 +1034,84 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
 
-let quitHandled = false;
+let shutdownPromise = null;
+
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), ms)),
+  ]);
+}
+
+async function shutdownApp() {
+  console.log("[Shutdown] Starting cleanup...");
+
+  try { globalShortcut.unregisterAll(); } catch (_) {}
+  try { if (trayManager) trayManager.destroy(); } catch (_) {}
+  try { if (overlayManager) overlayManager.destroy(); } catch (_) {}
+
+  if (apiHttpServer) {
+    try {
+      await withTimeout(
+        new Promise((resolve) => apiHttpServer.close(() => resolve())),
+        2000
+      );
+      apiHttpServer.unref();
+      apiHttpServer = null;
+      console.log("[Shutdown] API server closed");
+    } catch (_) {}
+  }
+
+  if (captureClient) {
+    try {
+      await withTimeout(captureClient.stopCaptureSession(), 3000);
+      console.log("[Shutdown] Capture session stopped");
+    } catch (_) {}
+    try {
+      await withTimeout(captureClient.shutdown(), 3000);
+      console.log("[Shutdown] CaptureClient shutdown complete");
+    } catch (_) {}
+    captureClient = null;
+  }
+
+  if (wsConnection) {
+    try { await withTimeout(wsConnection.close(), 2000); } catch (_) {}
+    wsConnection = null;
+    console.log("[Shutdown] WebSocket closed");
+  }
+
+  try { await withTimeout(tunnelManager.stop(), 2000); } catch (_) {}
+  contextBuffer.cleanup();
+  console.log("[Shutdown] Cleanup complete");
+}
+
+function exitGracefully(source) {
+  console.log(`[Shutdown] ${source}`);
+
+  // All callers share the same shutdown promise — second caller waits for the
+  // first cleanup to finish instead of resolving immediately and calling exit.
+  if (!shutdownPromise) {
+    const forceExit = setTimeout(() => {
+      console.error("[Shutdown] Force exit (timeout)");
+      process.exit(1);
+    }, 10000);
+    forceExit.unref();
+
+    shutdownPromise = shutdownApp();
+  }
+
+  shutdownPromise
+    .then(() => process.exit(0))
+    .catch(() => process.exit(1));
+}
+
 app.on("before-quit", (e) => {
-  if (quitHandled) return;
-  quitHandled = true;
   e.preventDefault();
-  (async () => {
-    globalShortcut.unregisterAll();
-    if (trayManager) trayManager.destroy();
-    if (overlayManager) overlayManager.destroy();
-    if (apiHttpServer) {
-      try {
-        await Promise.race([
-          new Promise((resolve) => apiHttpServer.close(() => resolve())),
-          new Promise((r) => setTimeout(r, 2000)),
-        ]);
-        apiHttpServer.unref();
-        apiHttpServer = null;
-      } catch (_) {}
-    }
-    if (captureClient) {
-      try {
-        await captureClient.stopCaptureSession();
-        await captureClient.shutdown();
-      } catch (_) {}
-    }
-    if (wsConnection) {
-      await wsConnection.close();
-    }
-    await tunnelManager.stop();
-    contextBuffer.cleanup();
-    app.exit(0);
-  })().catch((err) => {
-    console.error("[Quit] Cleanup error:", err);
-    app.exit(1);
-  });
+  exitGracefully("before-quit");
 });
+
+process.on("SIGINT", () => exitGracefully("Received SIGINT"));
+process.on("SIGTERM", () => exitGracefully("Received SIGTERM"));
 
 // =============================================================================
 // Exports

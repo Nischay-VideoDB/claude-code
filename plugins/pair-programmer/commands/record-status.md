@@ -1,15 +1,16 @@
 ---
-description: Check recording status via the recorder HTTP API
+description: Check recording status via the recorder MCP tools
+tools: Read
+mcpServers: recorder
 ---
 
-Show current recording status. See SKILL.md for full endpoint docs.
+Show current recording status.
 
 ## Flow
 
-1. Use the **file read tool** to read `~/.config/videodb/config.json` (do NOT use cat/jq). Get `recorder_port` (default 8899).
-2. Call `GET /api/status`
-3. If connection refused → recorder is not running, suggest `/pair-programmer:record-config` or `bash "${CLAUDE_PLUGIN_ROOT}/scripts/start-recorder.sh"`
-4. Report concisely:
+1. Call `get_status`.
+2. If it errors with "Recorder not reachable" → recorder is not running, suggest `/pair-programmer:record-config` or `bash "${CLAUDE_PLUGIN_ROOT}/scripts/start-recorder.sh"`
+3. Report concisely:
    - Recording: "Recording active for Xs — screen: N, mic: N, audio: N items"
    - Not recording: "Not recording. N items in buffer from last session."
    - Mention `rtstream_id` values when present (for searching past content)
