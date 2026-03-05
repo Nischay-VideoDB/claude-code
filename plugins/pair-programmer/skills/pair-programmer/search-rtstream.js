@@ -77,20 +77,21 @@ async function main() {
 
   if (args.rtstream) {
     const rtstream = await coll.getRTStream(args.rtstream);
-    results = await rtstream.search(args.query);
+    results = await rtstream.search({ query: args.query });
   } else {
-    results = await coll.search(args.query, { namespace: "rtstream" });
+    // coll.search positional args: query, searchType, indexType, resultThreshold, scoreThreshold, dynamicScorePercentage, filter, namespace
+    results = await coll.search(args.query, undefined, undefined, undefined, undefined, undefined, undefined, "rtstream");
   }
 
   const shots = results.getShots ? results.getShots() : results.shots || results;
 
   const output = (Array.isArray(shots) ? shots : []).map(shot => ({
     text: shot.text || "",
-    start: shot.start || null,
-    end: shot.end || null,
-    rtstream_id: shot.rtstream_id || shot.video_id || "",
-    rtstream_name: shot.rtstream_name || shot.video_title || "",
-    score: shot.search_score || shot.score || null,
+    start: shot.start ?? null,
+    end: shot.end ?? null,
+    rtstream_id: shot.rtstreamId || "",
+    rtstream_name: shot.rtstreamName || "",
+    score: shot.searchScore ?? null,
   }));
 
   console.log(JSON.stringify(output, null, 2));
